@@ -53,7 +53,9 @@ def build_prompt(kwargs):
     context_text = "".join(str(text_element) for text_element in docs_by_type["texts"])
     
     prompt_template = f"""
-    Answer the question based only on the following context, which can include text, tables, and the below image.
+    Generate and answer for the student query based only on the following context, which can include text, tables, and the image.
+    (images might or might be related to the question.. see to it)
+    provided context from textbooks.
     Context: {context_text}
     Question: {user_question}
     """
@@ -114,4 +116,6 @@ def display_base64_image(base64_code):
 
 
 # Example usage
-response,images = query_document("10social1", "What is french revolution .give an image?")
+response,images = query_document("10History1", '''
+what does crown of oak leaves  signify
+''')
