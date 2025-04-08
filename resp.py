@@ -49,37 +49,111 @@ def parse_docs(docs):
 def build_prompt(kwargs):
     docs_by_type = kwargs["context"]
     user_question = kwargs["question"]
-
+    
+    # Extract grade from filename (assumes it's passed via context)
+    grade = str(kwargs.get("file_name", ""))[:2]
+    # if not grade.isdigit():
+    #     grade = "10"  # fallback if missing/invalid
+    
     context_text = "".join(str(text_element) for text_element in docs_by_type["texts"])
     
     prompt_template = f"""
-    Generate and answer for the student query based only on the following context, which can include text, tables, and the image.
-    (images might or might be related to the question.. see to it)
-    provided context from textbooks.
+    You are an AI tutor helping a Grade {grade} student understand their school subject.
+
+    Based on the following context, which may include textbook passages, tables, and relevant images,
+    generate a clear, simple, and engaging answer to the student's question.
+    If an image is given, analyze it carefully and relate it only if relevant.
+
     Context: {context_text}
+
     Question: {user_question}
+
+    Your response should:
+    - Be tailored for a Grade {grade} student
+    - Use simple, grade-appropriate language
+    - Avoid complex jargon
+
     """
 
     prompt_content = [{"type": "text", "text": prompt_template}]
 
     if docs_by_type["images"]:
         image = docs_by_type["images"][0]
-        prompt_content.append(
-            {
-                "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{image}"},
-            }
-        )
+        prompt_content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{image}"},
+        })
 
     return ChatPromptTemplate.from_messages([
         HumanMessage(content=prompt_content),
     ])
+
+
+# def build_prompt(kwargs):
+#     docs_by_type = kwargs["context"]
+#     user_question = kwargs["question"]
+
+#     context_text = "".join(str(text_element) for text_element in docs_by_type["texts"])
+    
+#     prompt_template = f"""
+#     Generate and answer for the student query based only on the following context, which can include text, tables, and the image.
+#     (images might or might be related to the question.. see to it)
+#     provided context from textbooks.
+#     Context: {context_text}
+#     Question: {user_question}
+#     """
+
+#     prompt_content = [{"type": "text", "text": prompt_template}]
+
+#     if docs_by_type["images"]:
+#         image = docs_by_type["images"][0]
+#         prompt_content.append(
+#             {
+#                 "type": "image_url",
+#                 "image_url": {"url": f"data:image/jpeg;base64,{image}"},
+#             }
+#         )
+
+#     return ChatPromptTemplate.from_messages([
+#         HumanMessage(content=prompt_content),
+#     ])
+
+# def query_document(file_name, question):
+#     chain = (
+#         {
+#             "context": retrieve_from_store(file_name) | RunnableLambda(parse_docs),
+#             "question": RunnablePassthrough(),
+#         }
+#         | RunnablePassthrough().assign(
+#             response=(
+#                 RunnableLambda(build_prompt)
+#                 | ChatTogether(model="meta-llama/Llama-Vision-Free")
+#                 | StrOutputParser()
+#             )
+#         )
+#     )
+    
+#     # response = chain.invoke(question)
+#     # print("Response:", response)
+#     response = chain.invoke(
+#         question
+#     )
+#     print("Response:", response['response'])
+
+#     images=[]
+#     for image in response['context']['images']:
+#         print(len(response['context']['images']))
+#         pimage = display_base64_image(image)
+#         images.append(pimage)
+        
+#     return response['response'],images
 
 def query_document(file_name, question):
     chain = (
         {
             "context": retrieve_from_store(file_name) | RunnableLambda(parse_docs),
             "question": RunnablePassthrough(),
+            "file_name": RunnableLambda(lambda _: file_name),
         }
         | RunnablePassthrough().assign(
             response=(
@@ -90,20 +164,17 @@ def query_document(file_name, question):
         )
     )
     
-    # response = chain.invoke(question)
-    # print("Response:", response)
-    response = chain.invoke(
-        question
-    )
+    response = chain.invoke(question)
     print("Response:", response['response'])
 
-    images=[]
+    images = []
     for image in response['context']['images']:
         print(len(response['context']['images']))
         pimage = display_base64_image(image)
         images.append(pimage)
-        
-    return response['response'],images
+
+    return response['response'], images
+
     
 def display_base64_image(base64_code):
     # Decode the base64 string to binary
