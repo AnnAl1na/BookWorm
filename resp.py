@@ -186,7 +186,40 @@ def display_base64_image(base64_code):
     return image
 
 
+def query_image(image_base64_url: str, question: str):
+    def build_image_prompt(_):
+        prompt_content = [
+            {
+                "type": "text",
+                "text": f"""
+You are an AI tutor. A student has a question based on the image provided.
+
+Answer the question clearly and concisely, using simple, age-appropriate language.
+
+Question: {question}
+"""
+            },
+            {
+                "type": "image_url",
+                # "image_url": {"url": image_base64_url},
+                "image_url": {"url": f"data:image/jpeg;base64,{image_base64_url}"},
+            }
+        ]
+        return ChatPromptTemplate.from_messages([
+            HumanMessage(content=prompt_content)
+        ])
+
+    chain = (
+        RunnableLambda(lambda _: {})
+        | RunnableLambda(build_image_prompt)
+        | ChatTogether(model="meta-llama/Llama-Vision-Free")
+        | StrOutputParser()
+    )
+
+    return chain.invoke({})
+
+
+
 # Example usage
-response,images = query_document("10History1", '''
-what does crown of oak leaves  signify
-''')
+response,images = query_document("5Science1", '''
+what are animals?''')
